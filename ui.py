@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 José Chamba and IngeTrazo contributors.
+
 from __future__ import annotations
 
 import os
@@ -27,12 +30,13 @@ from .exporter import LuxCoreExporter
 
 
 class IGZLuxCorePanel(QWidget):
-    """Panel lateral de PySide6 para controlar la exportación de LuxCore."""
+    """Panel lateral de PySide6 para controlar la exportación y renderizado con LuxCore."""
 
     def __init__(self, app) -> None:
         super().__init__()
         self.app = app
         self.process: QProcess | None = None
+        self.custom_output_dir: Path | None = None
         self._init_ui()
         self.refresh()
 
@@ -118,8 +122,6 @@ class IGZLuxCorePanel(QWidget):
         group_status = QGroupBox(_t("Status & Output"))
         form_status = QFormLayout(group_status)
 
-        self.custom_output_dir: Path | None = None
-
         self.lbl_output_path = QLabel("-")
         self.lbl_output_path.setWordWrap(True)
         self.lbl_output_path.setStyleSheet("color: #7f8c8d; font-size: 11px;")
@@ -157,6 +159,14 @@ class IGZLuxCorePanel(QWidget):
         if file_path:
             self.exe_path_input.setText(file_path)
 
+    def _browse_output_folder(self) -> None:
+        """Abre un cuadro de diálogo para seleccionar la carpeta donde se guardarán los archivos."""
+        initial_dir = str(self.custom_output_dir or LuxCoreExporter.get_render_output_dir(self.app))
+        folder = QFileDialog.getExistingDirectory(self, _t("Select Output Folder"), initial_dir)
+        if folder:
+            self.custom_output_dir = Path(folder)
+            self.lbl_output_path.setText(str(self.custom_output_dir))
+
     def _get_settings(self) -> dict:
         engine_type = "PATHCPU"
         if "PATHOCL" in self.combo_device.currentText():
@@ -177,6 +187,10 @@ class IGZLuxCorePanel(QWidget):
         }
 
     def _export_and_render(self) -> None:
+        if self.process and self.process.state() != QProcess.ProcessState.NotRunning:
+            QMessageBox.information(self, "LuxCore", "Ya hay un proceso de renderizado en ejecución.")
+            return
+
         exe_path = self.exe_path_input.text().strip()
         if not exe_path or not os.path.exists(exe_path):
             self.lbl_status.setText(_t("Error: Invalid executable path"))
@@ -184,12 +198,13 @@ class IGZLuxCorePanel(QWidget):
             return
 
         self.lbl_status.setText(_t("Exporting scene..."))
-        render_dir = LuxCoreExporter.get_render_output_dir(self.app)
+        render_dir = self.custom_output_dir or LuxCoreExporter.get_render_output_dir(self.app)
         cfg_path, _ = LuxCoreExporter.generate_scene_files(render_dir, self._get_settings())
 
         self.lbl_status.setText(_t("Rendering started..."))
 
         self.process = QProcess(self)
+        self.process.setWorkingDirectory(str(render_dir))
         self.process.finished.connect(self._on_render_finished)
         self.process.start(exe_path, [str(cfg_path)])
 
@@ -197,5 +212,7 @@ class IGZLuxCorePanel(QWidget):
         self.lbl_status.setText(_t("Render finished"))
 
     def refresh(self) -> None:
-        render_dir = LuxCoreExporter.get_render_output_dir(self.app)
-        self.lbl_output_path.setText(str(render_dir))
+        """Actualiza la vista previa de la carpeta de salida si el usuario no ha definido una propia."""
+        if not self.custom_output_dir:
+            render_dir = LuxCoreExporter.get_render_output_dir(self.app)
+            self.lbl_output_path.setText(str(render_dir))
