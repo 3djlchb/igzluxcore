@@ -8,5 +8,5 @@ from .ui import IGZLuxCorePanel
 def setup(app) -> None:
     """Punto de entrada de la extensión al cargarse en IngeTrazo."""
     panel = IGZLuxCorePanel(app)
-    app.add_panel(_t("LuxCore Render"), panel)
+    app.add_panel(_t("RenderLX"), panel)
     app.on_document_changed(panel.refresh)
