@@ -118,10 +118,20 @@ class IGZLuxCorePanel(QWidget):
         group_status = QGroupBox(_t("Status & Output"))
         form_status = QFormLayout(group_status)
 
+        self.custom_output_dir: Path | None = None
+
         self.lbl_output_path = QLabel("-")
         self.lbl_output_path.setWordWrap(True)
         self.lbl_output_path.setStyleSheet("color: #7f8c8d; font-size: 11px;")
-        form_status.addRow(_t("Output Folder:"), self.lbl_output_path)
+
+        btn_browse_output = QPushButton(_t("Browse..."))
+        btn_browse_output.clicked.connect(self._browse_output_folder)
+
+        row_output = QHBoxLayout()
+        row_output.addWidget(self.lbl_output_path)
+        row_output.addWidget(btn_browse_output)
+
+        form_status.addRow(_t("Output Folder:"), row_output)
 
         self.lbl_status = QLabel(_t("Ready"))
         form_status.addRow(_t("Status:"), self.lbl_status)

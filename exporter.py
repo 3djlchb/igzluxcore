@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 José Chamba and IngeTrazo contributors.
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -26,6 +29,9 @@ class LuxCoreExporter:
 
     @classmethod
     def generate_scene_files(cls, render_dir: Path, settings: dict) -> tuple[Path, Path]:
+        """Crea los archivos de escena y configuración asegurando comillas para rutas con espacios."""
+        render_dir.mkdir(parents=True, exist_ok=True)
+
         mesh_ply_path = render_dir / "ingetrazo_mesh.ply"
         scn_path = render_dir / "scene.scn"
         cfg_path = render_dir / "scene.cfg"
@@ -52,13 +58,12 @@ end_header
 3 0 2 3
 """)
 
-        # 2. Definición de Escena SCN
+        # 2. Definición de Escena SCN (Rutas entre comillas dobles para evitar errores si hay espacios)
         with open(scn_path, "w", encoding="utf-8") as f:
-            f.write(f"""
-scene.materials.mat_ground.type = matte
+            f.write(f"""scene.materials.mat_ground.type = matte
 scene.materials.mat_ground.kd = 0.8 0.8 0.8
 
-scene.objects.ground.ply = {mesh_ply_path.as_posix()}
+scene.objects.ground.ply = "{mesh_ply_path.as_posix()}"
 scene.objects.ground.material = mat_ground
 
 scene.camera.lookat.orig = 0 -5 5
@@ -75,11 +80,11 @@ scene.lights.dist_light.gain = 1.0 1.0 1.0
         cfg_lines = [
             f"renderengine.type = {settings.get('engine_type', 'PATHCPU')}",
             f"sampler.type = {settings.get('sampler_type', 'SOBOL')}",
-            f"scene.file = {scn_path.as_posix()}",
+            f'scene.file = "{scn_path.as_posix()}"',
             f"film.width = {settings.get('width', 1280)}",
             f"film.height = {settings.get('height', 720)}",
-            f"film.outputs.1.type = RGB_IMAGEPIPELINE",
-            f"film.outputs.1.filename = {image_png_path.as_posix()}",
+            "film.outputs.1.type = RGB_IMAGEPIPELINE",
+            f'film.outputs.1.filename = "{image_png_path.as_posix()}"',
             "periodicsave.film.outputs.period = 5",
         ]
 
@@ -91,6 +96,6 @@ scene.lights.dist_light.gain = 1.0 1.0 1.0
             cfg_lines.append("film.imagepipelines.1.0.type = BIDIR_OIDN")
 
         with open(cfg_path, "w", encoding="utf-8") as f:
-            f.write("\n".join(cfg_lines))
+            f.write("\n".join(cfg_lines) + "\n")
 
         return cfg_path, image_png_path
